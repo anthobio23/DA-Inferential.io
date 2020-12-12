@@ -1,0 +1,299 @@
+---
+title: "Analisis descriptivo e inferencial sobre los ingresos de los Colombianos"
+author: "Anthony J. Servita R."
+date: "16/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+importacion de librarias usadas para la resolucion del 
+analisis estadistico
+```{r include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(skimr)
+library(readxl)
+library(lubridate)
+library(tidyr)
+library(modeest)
+library(fdth)
+library(coin)
+```
+
+1.- conocimiento de problema: La base de datos suministrada (Base 10) contiene 
+los ingresos en miles de pesos de vendedores informales en cuatro 
+localidades: A, B, C, D. 
+
+  Se estima, que el comportamiento comercial de las localidades es similar, 
+  por lo que se debe decidir cual de las cuatro localidades genera mejores 
+  ingresos o si no hay diferencias entre ellos. 
+  
+  Estos registros fueron tomados de forma aleatoria en cada una de las 
+  localidades presentadas anteriormente.
+  
+  Para tomar la decicion se realizaran una serie de analisis estadistico como se
+  presenta a continuacion:
+    1. Analisis descriptivo previo.
+    
+    2. Descripcion de las hipotesisis estadisticas a probar.
+    
+    3. Verificacion de los supuestos necesarios para la prueba.
+    
+    4. Comparaciones multiples adecuadas obtenidas desde un ANOVA.
+    
+    5.Metodología Mann Whitney y realice la comparacion entre el ingreso de las 
+    localidades A y C.
+
+2.- Conocimiento de los datos: los datos del archivo "Base 10" se encuentras en
+    formato tipo CSV se parados por ";".
+
+```{r ingresos}
+Ingresos <- read_excel("Base 10 .xltx")
+
+head(Ingresos)
+```
+
+Los ingresos se detectan como tipo de datos dbl, lo cual podriamos simplificar 
+de manera que se pueda trabajar con valores enteros.
+
+```{r}
+df <- Ingresos
+glimpse(df)
+```
+vemos que nuestra base de datos contiene 48 filas y 3 columnas en la que se
+3 variables:
+  ...1: que contiene numero de vendedores
+  Cuanti: los ingresos en miles de pesos 
+  Cuali: localidades.
+  
+Para continuar es necesario transformar las variables ...1 y Cuanti pues ambas son
+dbl. Las llevaremos de dbl -> int
+
+La variable Cuali se cambiara a factor
+
+```{r}
+df <- df %>%
+  mutate(...1 = as.integer(...1)) %>%
+  mutate(Cuanti = as.integer(Cuanti)) %>%
+  mutate(Cuali = as.factor(Cuali))
+
+glimpse(df)  
+
+```
+revisaremos los niveles de la variable Cuali
+
+```{r}
+factor(df$Cuali)
+```
+se observa un total de cuatrp niveles, lo que significa que existen 4
+localidades distintas en nuestro dataframe.
+
+Le cambiaremos el el nombre de la variable ...1 por "sujeto"
+la variable Cuanti por "Ingresos"
+la variable Cuali por "Localidad"
+
+De esta manera identificaremos con mejor facilidad nuestras columnas
+
+```{r}
+nameVar <- c("Sujeto", "Ingresos", "Localidad")
+colnames(df) <- nameVar
+head(df)
+```
+
+  realizremos un conocimiento descriptivo de los datos.
+```{r}
+skim(df)
+```
+
+Podemos observar que la variable "Localidad" se encuentra representada por 4 
+localidades de las cuales 15 pertenecen a "A", otras 15 pertenecen a "B", 10
+pertencen a "C" y pertenecen a "D".
+
+Nuestra variable "Ingresos" se encuentra con un promedio de 6888 pesos en 
+ingresos con una desviacion estandar de 2718. el ingreso mas bajo esta 
+representado por el percentil 0, el cual tiene un valor de 2052 pesos, el 50%
+de los ingresos son de 7445 pesos sobre esta muestra y el maximo ingreso se
+encuentra en el valor del percentil 100 el cual es de 11183 pesos.
+
+El histograma refleja que los datos de la variable "Ingresos" no contiene una 
+distribucion normal, ademas de reflejar una asimetria hacia la izquierda.
+
+
+Realizaremos unos histogramas sobre la variable "ingresos" para visualizarlo
+con mayor detalle.
+```{r}
+ggplot(df, aes(Ingresos)) + geom_histogram(binwidth = 100)
+```
+como podemos visualizar, la variable Ingresos no tiene forma de distribucion
+normal. La asimetria de los datos no es tan clara, por lo que no sabremos si 
+realmente es asimetrica hacia la izquierda.
+
+analizaremos los datos por medio de un boxplot o grafico de caja
+
+```{r}
+ggplot(df, aes(y = Ingresos)) + geom_boxplot()
+```
+Como vemos, la mediana se encuentra cerca del valor del tercer cuartil y 
+bastante alejado del primer cuartil. asi mismo, el rango intercuartilico es 
+bastante grande, por lo que podemos inferir que se encuentran gran cantidad de 
+los datos entre el 25% y 75%. No encontramos valores atipicos en la grafica.
+
+realizaremos la misma grafica para los 4 elementos de la variable "Localidad"
+```{r}
+ggplot(df, aes(x = Sujeto, y = Ingresos, color = Localidad)) + 
+  geom_boxplot()
+```
+se observa que los valores mas altos se encuantran en las localidad A, D y C 
+respecitvamente; mientras que los valores mas bajos en los sujetos de la 
+localidad B.
+
+4.- analisis exploratorio de varible (EDA)
+
+```{r}
+df %>% 
+  select(Ingresos) %>%
+  gather() %>%
+  ggplot(aes(value)) + 
+  geom_density() +
+  facet_wrap(~key, scale = 'free') +
+  theme(axis.text = element_text(size = 6))
+```
+
+La grafica de densidad de los datos refleja un comportamiento unimodal. 
+este mismo se encuentra entre los 7500 y 9000 pesos.
+
+Calcularemos la moda para observa este valor con mayor detalle.
+```{r}
+mfv(df$Ingresos)
+```
+como vemos base de datos es polimodal. asi, la variable "Ingresos" no posee moda
+
+5.- tablas de frecuencias para la variable "Ingresos" y "Localidad"
+
+```{r}
+freqIng <- fdt(df[, 2], breaks = "Sturges")
+freqIng
+```
+tabla muestra las frecuencias absolutas (f), relativas (rf) y acumuladas (cf)
+de la variable "Ingresos". vemos que el 25% de los ingresos se encuentran entre
+los 7324.82 y los 8648.16 pesos. los ingresos mas altos estan repesentados por
+un 10% de los datos y los mas bajos representan el 17% de los ingresos.
+
+realizaremos un test de shapiro-wilk para medir la distribucion de los
+datos.
+
+```{r}
+shapiro.test(df$Ingresos)
+```
+Como el p-value es menor a 0.05 (valos alfa de significancia); se tiene un 95%
+de confianza de que la variable "Ingresos" no se distribuye normalmente.
+
+Realizeremos una prueba de hipotesis para la igualdad de medias entre las 4 
+localidades
+
+Primero separaremos la variable en 4 partes las cuales estara asignadas por
+las cuatros localidades
+
+```{r}
+Localidad_A <- df %>%
+  select(Ingresos, Localidad) %>%
+  filter(Localidad == "A")
+
+Localidad_B <- df %>%
+  select(Ingresos, Localidad) %>%
+  filter(Localidad == "B")
+
+Localidad_C <- df %>%
+  select(Ingresos, Localidad) %>%
+  filter(Localidad == "C")
+
+Localidad_D <- df %>%
+  select(Ingresos, Localidad) %>%
+  filter(Localidad == "D")
+```
+
+Hipotesis: 
+  H: Todas las medias son iguales.
+  H1: Al menos una de las medias es diferente.
+  nivel de significancia alfa de 0.05
+  
+Verificamos las condiciones para realizar un analisis ANOVA
+
+Prueba de normalidad sobre las 4 localidades
+```{r}
+## LOcalidad A
+shapiro.test(Localidad_A$Ingresos)
+
+```
+Como el valor-p en mayor al 0.05 (valor de significancia) tendremos un 95% de 
+confianza de que los datos en la localidad A se distribuyen normalmente.
+
+```{r}
+## Localidad B
+shapiro.test(Localidad_B$Ingresos)
+```
+Como el valor-p en mayor al 0.05 (valor de significancia) tendremos un 95% de 
+confianza de que los datos en la localidad B se distribuyen normalmente.
+
+```{r}
+## Localidad C
+shapiro.test(Localidad_C$Ingresos)
+```
+Como el valor-p en mayor al 0.05 (valor de significancia) tendremos un 95% de 
+confianza de que los datos en la localidad C se distribuyen normalmente.
+
+```{r}
+## Localidad D
+shapiro.test(Localidad_D$Ingresos)
+```
+Como el valor-p en mayor al 0.05 (valor de significancia) tendremos un 95% de 
+confianza de que los datos en la localidad D se distribuyen normalmente.
+
+Asi, tenemos que los ingresos de las cuatro localidades se distribuyen 
+normalmente.
+
+Varianza constante entre grupos:
+```{r}
+fligner.test(Ingresos ~ Localidad , df)
+```
+Dado que el valor-p 0.03 se encuentra por debajo del valor de significancia
+0.05, tenemos un 95% de confianza de que no hay evidencia de
+homocedasticidad.
+
+
+Analisis anova:
+```{r}
+anova <- aov(Ingresos ~ Localidad, df)
+summary(anova)
+```
+
+Conlusiones del ANOVA: dado que el valor-p es menor al valor 0.05 siendo este 
+significativo. tendremos un 95% de confianza de rechazar la hipotesis nula. 
+Por lo tanto, debemos considerar que al menos una de las medias es diferente 
+de las demas.
+
+Prueba de Mann Whitney
+  para la hipotesis:
+    H0: P(X > Y) = P(Y > X)
+    H1: P(X > Y) != P(Y > X)
+    
+Analisis de homocedasticidad entre los ingresos de las localidades A y C
+```{r}
+fligner.test(x = list(Localidad_A$Ingresos,Localidad_C$Ingresos))
+```
+no hay evidencia significativa de la existencia de homocedasticidad.
+
+dado que no hay varianzas iguales entre los ingresos de la localiad A y la 
+localidad C no se podra realizar el test de Mann Whitney. a pesar de que 
+estas variables cumplen con las condiciones de normalidad e independencia. 
+
+Conclusiones de analisis descriptivo: Debido a que las varianzas son disitintas
+entre si, y sus promedios son distintos... podemos concluir que existe 
+diferencia entre los ingresos de vendedores en las 4 localidades "A", "B", "C", 
+"D".
+
+    
+

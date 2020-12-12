@@ -1,0 +1,89 @@
+---
+title: 'Analisis inferencial: Regresion lineal'
+author: "Anthony J. Servita R."
+date: "16/10/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(lattice)
+library(dplyr)
+```
+
+
+Entendimiento del problema:
+  datos representan el diseño de plantas en climas dificiles.
+  
+1.- Conocimiento de los datos
+
+```{r plantas}
+options(digits = 2)
+Duracion <- c(92, 92, 96, 100, 102, 102, 106, 106, 121, 143)
+Rendimiento <- c(1.7, 2.3, 1.9, 2, 1.5, 1.7, 1.6, 1.8, 1, 0.3)
+datasets <- data.frame(Duracion, Rendimiento)
+head(datasets)
+```
+
+Regresión lineal:
+
+```{r}
+## correlación
+df <- datasets
+df %>%
+  select_if(is.double) %>%
+  cor() %>%
+  round(digits = 2)
+```
+
+ambas variables presentan una correlacion muy alta y significativa de forma 
+negativa
+
+ecuación de la recta:
+```{r}
+regresion <- lm(Rendimiento ~ Duracion, df)
+regresion
+```
+la ecuación de la recta esta dada por Y = mx + b
+sus valores son: y = -0.0342x + 5.2068
+
+```{r}
+summary(regresion)
+```
+vemos que el valor-p es significativo para la regresion, lo que quiere decir, 
+que la variable independiente "Duracion" describe completamente a la variable
+"Rendimiento".
+
+el valor de p es muy significativo ***. por lo que existe una regresion 
+lineal significativa entre la duracion y el rendimiento.
+
+Residual standard error: En promedio, cualquier prediccion del modelo se aleja
+0.8 unidades del valor real
+
+R^2: el predictor Rendimiento puede explicar el 86.8% de la variabilidad 
+observada en la Duracion de las plantas.
+
+Estimación del rendimiento:
+```{r}
+newdata <- c(104)
+predict(regresion, newdata = data.frame(Duracion = c(104)),
+        interval ="prediction", level = 0.95)
+```
+el valor fit se encuentra dentro del intervalor lwr y upr por lo que se tiene 
+un 95% de confianza de que el valor esperado para la "Duracion" de una planta
+en climas dificiles es de 1.6 de "Rendimiento".
+
+
+Gráfica de regresion.
+```{r}
+attach(df)
+plot(Duracion, Rendimiento, abline(regresion, col = "red"),
+     main = "Regresion lineal de Rendimiento Vs Duracion de la plantas")
+```
+La recta calculada en la regresion lineal se ajusta muy bien a los datos dispersos en las variables rendimiento y duracion.
+
